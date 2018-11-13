@@ -30,12 +30,12 @@ public class SimpleMonthView extends MonthView {
     @Override
     public void drawMonthDay(Canvas canvas, int year, int month, int day,
                              int x, int y, int startX, int stopX, int startY, int stopY) {
-        if (mSelectedDay == day) {
+        if (mSelectedDays.contains(day)) {
             canvas.drawCircle(x, y - (MINI_DAY_NUMBER_TEXT_SIZE / 3), DAY_SELECTED_CIRCLE_SIZE,
                     mSelectedCirclePaint);
         }
 
-        if (isHighlighted(year, month, day) && mSelectedDay != day) {
+        if (isHighlighted(year, month, day) && !mSelectedDays.contains(day)) {
             canvas.drawCircle(x, y + MINI_DAY_NUMBER_TEXT_SIZE - DAY_HIGHLIGHT_CIRCLE_MARGIN,
                     DAY_HIGHLIGHT_CIRCLE_SIZE, mSelectedCirclePaint);
             mMonthNumPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
@@ -46,7 +46,7 @@ public class SimpleMonthView extends MonthView {
         // gray out the day number if it's outside the range.
         if (mController.isOutOfRange(year, month, day)) {
             mMonthNumPaint.setColor(mDisabledDayTextColor);
-        } else if (mSelectedDay == day) {
+        } else if (mSelectedDays.contains(day)) {
             mMonthNumPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
             mMonthNumPaint.setColor(mSelectedDayTextColor);
         } else if (mHasToday && mToday == day) {

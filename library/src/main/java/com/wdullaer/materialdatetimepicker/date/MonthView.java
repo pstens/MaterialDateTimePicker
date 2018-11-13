@@ -44,6 +44,7 @@ import com.wdullaer.materialdatetimepicker.date.MonthAdapter.CalendarDay;
 import java.security.InvalidParameterException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -96,8 +97,8 @@ public abstract class MonthView extends View {
     protected int mRowHeight = DEFAULT_HEIGHT;
     // If this view contains the today
     protected boolean mHasToday = false;
-    // Which day is selected [0-6] or -1 if no day is selected
-    protected int mSelectedDay = -1;
+    // Which days are selected [0-6] or empty if no day is selected
+    protected HashSet<Integer> mSelectedDays = new HashSet<>();
     // Which day is today [0-6] or -1 if no day is today
     protected int mToday = DEFAULT_SELECTED_DAY;
     // Which day of the week to start on [0-6]
@@ -288,12 +289,12 @@ public abstract class MonthView extends View {
      * will only update if a new value is included, except for focus month,
      * which will always default to no focus month if no value is passed in.
      */
-    public void setMonthParams(int selectedDay, int year, int month, int weekStart) {
+    public void setMonthParams(HashSet<Integer> selectedDays, int year, int month, int weekStart) {
         if (month == -1 && year == -1) {
             throw new InvalidParameterException("You must specify month and year for this view");
         }
 
-        mSelectedDay = selectedDay;
+        mSelectedDays = selectedDays;
 
         // Allocate space for caching the day numbers and focus values
         mMonth = month;
@@ -332,8 +333,8 @@ public abstract class MonthView extends View {
     }
 
     @SuppressWarnings("unused")
-    public void setSelectedDay(int day) {
-        mSelectedDay = day;
+    public void setSelectedDays(HashSet<Integer> days) {
+        mSelectedDays = days;
     }
 
     private int calculateNumRows() {
@@ -705,7 +706,7 @@ public abstract class MonthView extends View {
             node.setBoundsInParent(mTempRect);
             node.addAction(AccessibilityNodeInfo.ACTION_CLICK);
 
-            if (virtualViewId == mSelectedDay) {
+            if (mSelectedDays.contains(virtualViewId)) {
                 node.setSelected(true);
             }
 
@@ -756,7 +757,7 @@ public abstract class MonthView extends View {
             final CharSequence date = DateFormat.format(DATE_FORMAT,
                     mTempCalendar.getTimeInMillis());
 
-            if (day == mSelectedDay) {
+            if (mSelectedDays.contains(day)) {
                 return getContext().getString(R.string.mdtp_item_is_selected, date);
             }
 

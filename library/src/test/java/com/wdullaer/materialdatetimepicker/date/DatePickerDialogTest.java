@@ -4,6 +4,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Calendar;
+import java.util.List;
 import java.util.TimeZone;
 
 public class DatePickerDialogTest {
@@ -15,6 +16,11 @@ public class DatePickerDialogTest {
             public void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth) {
 
             }
+
+            @Override
+            public void onMultipleDatesSelected(DatePickerDialog view, List<Calendar> dates) {
+
+            }
         });
         Assert.assertFalse(dpd.isHighlighted(1990, 1, 1));
     }
@@ -24,6 +30,11 @@ public class DatePickerDialogTest {
         DatePickerDialog dpd = DatePickerDialog.newInstance(new DatePickerDialog.OnDateSetListener() {
             @Override
             public void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth) {
+
+            }
+
+            @Override
+            public void onMultipleDatesSelected(DatePickerDialog view, List<Calendar> dates) {
 
             }
         });
@@ -44,6 +55,11 @@ public class DatePickerDialogTest {
         DatePickerDialog dpd = DatePickerDialog.newInstance(new DatePickerDialog.OnDateSetListener() {
             @Override
             public void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth) {
+
+            }
+
+            @Override
+            public void onMultipleDatesSelected(DatePickerDialog view, List<Calendar> dates) {
 
             }
         });
@@ -70,6 +86,11 @@ public class DatePickerDialogTest {
         DatePickerDialog dpd = DatePickerDialog.newInstance(new DatePickerDialog.OnDateSetListener() {
             @Override
             public void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth) {
+
+            }
+
+            @Override
+            public void onMultipleDatesSelected(DatePickerDialog view, List<Calendar> dates) {
 
             }
         }, initial);

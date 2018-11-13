@@ -37,6 +37,7 @@ import com.wdullaer.materialdatetimepicker.date.DatePickerDialog.OnDateChangedLi
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.Locale;
 
 /**
@@ -51,7 +52,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
     protected Context mContext;
 
     // highlighted time
-    protected MonthAdapter.CalendarDay mSelectedDay;
+    protected HashSet<MonthAdapter.CalendarDay> mSelectedDays = new HashSet<>();
     protected MonthAdapter mAdapter;
 
     protected MonthAdapter.CalendarDay mTempDay;
@@ -89,7 +90,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
     public void setController(DatePickerController controller) {
         mController = controller;
         mController.registerOnDateChangedListener(this);
-        mSelectedDay = new MonthAdapter.CalendarDay(mController.getTimeZone());
+        mSelectedDays.add(new MonthAdapter.CalendarDay(mController.getTimeZone()));
         mTempDay = new MonthAdapter.CalendarDay(mController.getTimeZone());
         YEAR_FORMAT = new SimpleDateFormat("yyyy", controller.getLocale());
         refreshAdapter();
@@ -148,7 +149,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
         if (mAdapter == null) {
             mAdapter = createMonthAdapter(mController);
         } else {
-            mAdapter.setSelectedDay(mSelectedDay);
+            mAdapter.addSelectedDays(mSelectedDays);
             if (pageListener != null) pageListener.onPageChanged(getMostVisiblePosition());
         }
         // refresh the view with the new parameters
@@ -186,7 +187,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
 
         // Set the selected day
         if (setSelected) {
-            mSelectedDay.set(day);
+            mSelectedDays.add(day);
         }
 
         mTempDay.set(day);
@@ -212,10 +213,6 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
         // Compute the first and last position visible
         int selectedPosition = child != null ? getChildAdapterPosition(child) : 0;
 
-        if (setSelected) {
-            mAdapter.setSelectedDay(mSelectedDay);
-        }
-
         if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "GoTo position " + position);
         }
@@ -232,7 +229,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
                 postSetSelection(position);
             }
         } else if (setSelected) {
-            setMonthDisplayed(mSelectedDay);
+            setMonthDisplayed(day);
         }
         return false;
     }
@@ -291,7 +288,7 @@ public abstract class DayPickerView extends RecyclerView implements OnDateChange
 
     @Override
     public void onDateChanged() {
-        goTo(mController.getSelectedDay(), false, true, true);
+        goTo(mController.getFirstSelectedDay(), false, true, true);
     }
 
     /**

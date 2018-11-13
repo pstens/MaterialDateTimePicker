@@ -18,7 +18,9 @@ package com.wdullaer.materialdatetimepicker.date;
 
 import android.content.Context;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
+
 import android.view.ViewGroup;
 import android.widget.AbsListView.LayoutParams;
 
@@ -26,6 +28,7 @@ import com.wdullaer.materialdatetimepicker.date.MonthAdapter.MonthViewHolder;
 import com.wdullaer.materialdatetimepicker.date.MonthView.OnDayClickListener;
 
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.TimeZone;
 
 /**
@@ -36,7 +39,7 @@ public abstract class MonthAdapter extends RecyclerView.Adapter<MonthViewHolder>
 
     protected final DatePickerController mController;
 
-    private CalendarDay mSelectedDay;
+    private HashSet<CalendarDay> mSelectedDays;
 
     protected static final int MONTHS_IN_YEAR = 12;
 
@@ -110,35 +113,68 @@ public abstract class MonthAdapter extends RecyclerView.Adapter<MonthViewHolder>
         public int getDay() {
             return day;
         }
+
+        @Override
+        public boolean equals(@Nullable Object other) {
+            if (other == null) return false;
+            if (other == this) return true;
+            if (!(other instanceof CalendarDay)) return false;
+            CalendarDay otherParsed = (CalendarDay) other;
+            return otherParsed.day == day && otherParsed.month == month && otherParsed.year == year;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 17;
+            result = 31 * result + year;
+            result = 31 * result + month;
+            result = 31 * result + day;
+            return result;
+        }
     }
 
     public MonthAdapter(DatePickerController controller) {
         mController = controller;
         init();
-        setSelectedDay(mController.getSelectedDay());
+        addSelectedDays(mController.getSelectedDays());
         setHasStableIds(true);
     }
 
     /**
      * Updates the selected day and related parameters.
      *
-     * @param day The day to highlight
+     * @param day The days to add to the highlights
      */
-    public void setSelectedDay(CalendarDay day) {
-        mSelectedDay = day;
+    public void toggleSelectedDay(CalendarDay day) {
+        if (mController.allowMultipleSelection()) {
+            if (mSelectedDays.contains(day)) {
+                mSelectedDays.remove(day);
+            } else {
+                mSelectedDays.add(day);
+            }
+        } else {
+            mSelectedDays.clear();
+            mSelectedDays.add(day);
+        }
+        notifyDataSetChanged();
+    }
+
+    public void addSelectedDays(HashSet<CalendarDay> days) {
+        mSelectedDays.addAll(days);
         notifyDataSetChanged();
     }
 
     @SuppressWarnings("unused")
-    public CalendarDay getSelectedDay() {
-        return mSelectedDay;
+    public HashSet<CalendarDay> getSelectedDays() {
+        return mSelectedDays;
     }
 
     /**
      * Set up the gesture detector and selected time
      */
     protected void init() {
-        mSelectedDay = new CalendarDay(System.currentTimeMillis(), mController.getTimeZone());
+        mSelectedDays = new HashSet<>();
+        mSelectedDays.add(new CalendarDay(System.currentTimeMillis(), mController.getTimeZone()));
     }
 
     @Override
@@ -156,7 +192,7 @@ public abstract class MonthAdapter extends RecyclerView.Adapter<MonthViewHolder>
     }
 
     @Override public void onBindViewHolder(@NonNull MonthViewHolder holder, int position) {
-        holder.bind(position, mController, mSelectedDay);
+        holder.bind(position, mController, mSelectedDays);
     }
 
     @Override
@@ -188,8 +224,8 @@ public abstract class MonthAdapter extends RecyclerView.Adapter<MonthViewHolder>
      */
     protected void onDayTapped(CalendarDay day) {
         mController.tryVibrate();
-        mController.onDayOfMonthSelected(day.year, day.month, day.day);
-        setSelectedDay(day);
+        mController.onDayOfMonthSelected(day);
+        toggleSelectedDay(day);
     }
 
     static class MonthViewHolder extends RecyclerView.ViewHolder {
@@ -199,21 +235,22 @@ public abstract class MonthAdapter extends RecyclerView.Adapter<MonthViewHolder>
 
         }
 
-        void bind(int position, DatePickerController mController, CalendarDay selectedCalendarDay) {
+        void bind(int position, DatePickerController mController, HashSet<CalendarDay> selectedDays) {
             final int month = (position + mController.getStartDate().get(Calendar.MONTH)) % MONTHS_IN_YEAR;
             final int year = (position + mController.getStartDate().get(Calendar.MONTH)) / MONTHS_IN_YEAR + mController.getMinYear();
 
-            int selectedDay = -1;
-            if (isSelectedDayInMonth(selectedCalendarDay, year, month)) {
-                selectedDay = selectedCalendarDay.day;
-            }
+            HashSet<Integer> selectedDaysInMonth = getSelectedDaysInMonth(selectedDays, year, month);
 
-            ((MonthView) itemView).setMonthParams(selectedDay, year, month, mController.getFirstDayOfWeek());
+            ((MonthView) itemView).setMonthParams(selectedDaysInMonth, year, month, mController.getFirstDayOfWeek());
             this.itemView.invalidate();
         }
 
-        private boolean isSelectedDayInMonth(CalendarDay selectedDay, int year, int month) {
-            return selectedDay.year == year && selectedDay.month == month;
+        private HashSet<Integer> getSelectedDaysInMonth(HashSet<CalendarDay> selectedDays, int year, int month) {
+            HashSet<Integer> result = new HashSet<>();
+            for (CalendarDay day: selectedDays) {
+                if (day.year == year && day.month == month) result.add(day.day);
+            }
+            return result;
         }
     }
 }

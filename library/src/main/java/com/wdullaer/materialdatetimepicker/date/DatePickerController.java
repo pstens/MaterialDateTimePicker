@@ -17,8 +17,11 @@
 package com.wdullaer.materialdatetimepicker.date;
 
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.TimeZone;
+
+import androidx.annotation.Nullable;
 
 /**
  * Controller class to communicate among the various components of the date picker dialog.
@@ -27,19 +30,21 @@ public interface DatePickerController {
 
     void onYearSelected(int year);
 
-    void onDayOfMonthSelected(int year, int month, int day);
+    void onDayOfMonthSelected(MonthAdapter.CalendarDay day);
 
     void registerOnDateChangedListener(DatePickerDialog.OnDateChangedListener listener);
 
     @SuppressWarnings("unused")
     void unregisterOnDateChangedListener(DatePickerDialog.OnDateChangedListener listener);
 
-    MonthAdapter.CalendarDay getSelectedDay();
+    HashSet<MonthAdapter.CalendarDay> getSelectedDays();
+
+    MonthAdapter.CalendarDay getFirstSelectedDay();
 
     boolean isThemeDark();
 
     int getAccentColor();
-    
+
     boolean isHighlighted(int year, int month, int day);
 
     int getFirstDayOfWeek();
@@ -63,4 +68,6 @@ public interface DatePickerController {
     DatePickerDialog.Version getVersion();
 
     DatePickerDialog.ScrollOrientation getScrollOrientation();
+
+    boolean allowMultipleSelection();
 }

@@ -17,6 +17,7 @@
 package com.wdullaer.materialdatetimepicker.date;
 
 import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.DialogInterface;
@@ -103,6 +104,7 @@ public class DatePickerDialog extends DialogFragment implements
     private static final String KEY_DATERANGELIMITER = "daterangelimiter";
     private static final String KEY_SCROLL_ORIENTATION = "scrollorientation";
     private static final String KEY_LOCALE = "locale";
+    private static final String KEY_MULTIPLE_SELECTION = "multiple_selection";
 
     private static final int ANIMATION_DURATION = 300;
     private static final int ANIMATION_DELAY = 500;
@@ -117,6 +119,7 @@ public class DatePickerDialog extends DialogFragment implements
     private HashSet<OnDateChangedListener> mListeners = new HashSet<>();
     private DialogInterface.OnCancelListener mOnCancelListener;
     private DialogInterface.OnDismissListener mOnDismissListener;
+    private HashSet<MonthAdapter.CalendarDay> selectedDates = new HashSet<>();
 
     private AccessibleDateAnimator mAnimator;
 
@@ -127,6 +130,7 @@ public class DatePickerDialog extends DialogFragment implements
     private TextView mYearView;
     private DayPickerGroup mDayPickerView;
     private YearPickerView mYearPickerView;
+    private Button okButton;
 
     private int mCurrentView = UNINITIALIZED;
 
@@ -148,6 +152,7 @@ public class DatePickerDialog extends DialogFragment implements
     private int mCancelColor = -1;
     private Version mVersion;
     private ScrollOrientation mScrollOrientation;
+    private Boolean mAllowMultipleSelection;
     private TimeZone mTimezone;
     private Locale mLocale = Locale.getDefault();
     private DefaultDateRangeLimiter mDefaultLimiter = new DefaultDateRangeLimiter();
@@ -176,6 +181,12 @@ public class DatePickerDialog extends DialogFragment implements
          * @param dayOfMonth  The day of the month that was set.
          */
         void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth);
+
+        /**
+         * @param view        The view associated with this listener.
+         * @param dates       The dates which were selected.
+         */
+        void onMultipleDatesSelected(DatePickerDialog view, HashSet<MonthAdapter.CalendarDay> dates);
     }
 
     /**
@@ -200,9 +211,9 @@ public class DatePickerDialog extends DialogFragment implements
      * @param dayOfMonth  The initial day of the dialog.
      * @return a new DatePickerDialog instance.
      */
-    public static DatePickerDialog newInstance(OnDateSetListener callBack, int year, int monthOfYear, int dayOfMonth) {
+    public static DatePickerDialog newInstance(OnDateSetListener callBack, int year, int monthOfYear, int dayOfMonth, Boolean mAllowMultipleSelection) {
         DatePickerDialog ret = new DatePickerDialog();
-        ret.initialize(callBack, year, monthOfYear, dayOfMonth);
+        ret.initialize(callBack, year, monthOfYear, dayOfMonth, mAllowMultipleSelection);
         return ret;
     }
 
@@ -212,9 +223,9 @@ public class DatePickerDialog extends DialogFragment implements
      * @return a new DatePickerDialog instance
      */
     @SuppressWarnings("unused")
-    public static DatePickerDialog newInstance(OnDateSetListener callback) {
+    public static DatePickerDialog newInstance(OnDateSetListener callback, Boolean allowMultipleSelection) {
         Calendar now = Calendar.getInstance();
-        return DatePickerDialog.newInstance(callback, now);
+        return DatePickerDialog.newInstance(callback, now, allowMultipleSelection);
     }
 
     /**
@@ -226,28 +237,30 @@ public class DatePickerDialog extends DialogFragment implements
      * @return a new DatePickerDialog instance
      */
     @SuppressWarnings("unused")
-    public static DatePickerDialog newInstance(OnDateSetListener callback, Calendar initialSelection) {
+    public static DatePickerDialog newInstance(OnDateSetListener callback, Calendar initialSelection, Boolean allowMultipleSelection) {
         DatePickerDialog ret = new DatePickerDialog();
-        ret.initialize(callback, initialSelection);
+        ret.initialize(callback, initialSelection, allowMultipleSelection);
         return ret;
     }
 
-    public void initialize(OnDateSetListener callBack, Calendar initialSelection) {
+    public void initialize(OnDateSetListener callBack, Calendar initialSelection, Boolean allowMultipleSelection) {
         mCallBack = callBack;
         mCalendar = Utils.trimToMidnight((Calendar) initialSelection.clone());
+        selectedDates.add(new MonthAdapter.CalendarDay(mCalendar, mCalendar.getTimeZone()));
         mScrollOrientation = null;
+        mAllowMultipleSelection = allowMultipleSelection;
         //noinspection deprecation
         setTimeZone(mCalendar.getTimeZone());
 
         mVersion = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ? Version.VERSION_1 : Version.VERSION_2;
     }
 
-    public void initialize(OnDateSetListener callBack, int year, int monthOfYear, int dayOfMonth) {
+    public void initialize(OnDateSetListener callBack, int year, int monthOfYear, int dayOfMonth, Boolean allowMultipleSelection) {
         Calendar cal = Calendar.getInstance(getTimeZone());
         cal.set(Calendar.YEAR, year);
         cal.set(Calendar.MONTH, monthOfYear);
         cal.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-        this.initialize(callBack, cal);
+        this.initialize(callBack, cal, allowMultipleSelection);
     }
 
     @Override
@@ -307,6 +320,7 @@ public class DatePickerDialog extends DialogFragment implements
         outState.putSerializable(KEY_TIMEZONE, mTimezone);
         outState.putParcelable(KEY_DATERANGELIMITER, mDateRangeLimiter);
         outState.putSerializable(KEY_LOCALE, mLocale);
+        outState.putBoolean(KEY_MULTIPLE_SELECTION, mAllowMultipleSelection);
     }
 
     @Override
@@ -350,6 +364,7 @@ public class DatePickerDialog extends DialogFragment implements
             than a plain assignment
              */
             setLocale((Locale) savedInstanceState.getSerializable(KEY_LOCALE));
+            mAllowMultipleSelection = savedInstanceState.getBoolean(KEY_MULTIPLE_SELECTION);
 
             /*
             If the user supplied a custom limiter, we need to create a new default one to prevent
@@ -413,15 +428,14 @@ public class DatePickerDialog extends DialogFragment implements
         animation2.setDuration(ANIMATION_DURATION);
         mAnimator.setOutAnimation(animation2);
 
-        Button okButton = view.findViewById(R.id.mdtp_ok);
+        okButton = view.findViewById(R.id.mdtp_ok);
         okButton.setOnClickListener(v -> {
             tryVibrate();
             notifyOnDateListener();
             dismiss();
         });
         okButton.setTypeface(ResourcesCompat.getFont(activity, R.font.robotomedium));
-        if (mOkString != null) okButton.setText(mOkString);
-        else okButton.setText(mOkResid);
+        updateOkButtonText();
 
         Button cancelButton = view.findViewById(R.id.mdtp_cancel);
         cancelButton.setOnClickListener(v -> {
@@ -974,6 +988,11 @@ public class DatePickerDialog extends DialogFragment implements
         return mScrollOrientation;
     }
 
+    @Override
+    public boolean allowMultipleSelection() {
+        return mAllowMultipleSelection;
+    }
+
     /**
      * Set which timezone the picker should use
      *
@@ -1069,15 +1088,36 @@ public class DatePickerDialog extends DialogFragment implements
     }
 
     @Override
-    public void onDayOfMonthSelected(int year, int month, int day) {
-        mCalendar.set(Calendar.YEAR, year);
-        mCalendar.set(Calendar.MONTH, month);
-        mCalendar.set(Calendar.DAY_OF_MONTH, day);
+    public void onDayOfMonthSelected(MonthAdapter.CalendarDay dayOfMonth) {
+        // TODO: Is mCalendar still required?
+        mCalendar.set(Calendar.YEAR, dayOfMonth.year);
+        mCalendar.set(Calendar.MONTH, dayOfMonth.month);
+        mCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth.day);
+        if (mAllowMultipleSelection) {
+            if (selectedDates.contains(dayOfMonth)) {
+                selectedDates.remove(dayOfMonth);
+            } else {
+                selectedDates.add(dayOfMonth);
+            }
+        } else {
+            selectedDates.clear();
+            selectedDates.add(dayOfMonth);
+        }
+        updateOkButtonText();
         updatePickers();
         updateDisplay(true);
         if (mAutoDismiss) {
             notifyOnDateListener();
             dismiss();
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void updateOkButtonText() {
+        if (mOkString != null) okButton.setText(mOkString);
+        else okButton.setText(mOkResid);
+        if (selectedDates.size() > 1) {
+            okButton.setText(okButton.getText() + " (" + selectedDates.size() + ")" );
         }
     }
 
@@ -1087,8 +1127,17 @@ public class DatePickerDialog extends DialogFragment implements
 
 
     @Override
-    public MonthAdapter.CalendarDay getSelectedDay() {
-        return new MonthAdapter.CalendarDay(mCalendar, getTimeZone());
+    public HashSet<MonthAdapter.CalendarDay> getSelectedDays() {
+        return selectedDates;
+    }
+
+    @Override
+    public MonthAdapter.CalendarDay getFirstSelectedDay() {
+        if (selectedDates.isEmpty()) {
+            return new MonthAdapter.CalendarDay(mCalendar, getTimeZone());
+        } else {
+            return (MonthAdapter.CalendarDay) selectedDates.toArray()[0];
+        }
     }
 
     @Override
@@ -1143,8 +1192,12 @@ public class DatePickerDialog extends DialogFragment implements
 
     public void notifyOnDateListener() {
         if (mCallBack != null) {
-            mCallBack.onDateSet(DatePickerDialog.this, mCalendar.get(Calendar.YEAR),
-                    mCalendar.get(Calendar.MONTH), mCalendar.get(Calendar.DAY_OF_MONTH));
+            if (selectedDates.size() == 1) {
+                MonthAdapter.CalendarDay selected = getFirstSelectedDay();
+                mCallBack.onDateSet(DatePickerDialog.this, selected.year, selected.month, selected.day);
+            } else {
+                mCallBack.onMultipleDatesSelected(DatePickerDialog.this, selectedDates);
+            }
         }
     }
 }

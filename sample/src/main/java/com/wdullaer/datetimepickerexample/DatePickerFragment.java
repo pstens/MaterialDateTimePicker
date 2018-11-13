@@ -13,8 +13,10 @@ import android.widget.CheckBox;
 import android.widget.TextView;
 
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
+import com.wdullaer.materialdatetimepicker.date.MonthAdapter;
 
 import java.util.Calendar;
+import java.util.HashSet;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -82,14 +84,16 @@ public class DatePickerFragment extends Fragment implements DatePickerDialog.OnD
                         DatePickerFragment.this,
                         now.get(Calendar.YEAR),
                         now.get(Calendar.MONTH),
-                        now.get(Calendar.DAY_OF_MONTH)
+                        now.get(Calendar.DAY_OF_MONTH),
+                        true
                 );
             } else {
                 dpd.initialize(
                         DatePickerFragment.this,
                         now.get(Calendar.YEAR),
                         now.get(Calendar.MONTH),
-                        now.get(Calendar.DAY_OF_MONTH)
+                        now.get(Calendar.DAY_OF_MONTH),
+                        true
                 );
             }
             dpd.setThemeDark(modeDarkDate.isChecked());
@@ -145,6 +149,12 @@ public class DatePickerFragment extends Fragment implements DatePickerDialog.OnD
     @Override
     public void onDateSet(DatePickerDialog view, int year, int monthOfYear, int dayOfMonth) {
         String date = "You picked the following date: "+dayOfMonth+"/"+(++monthOfYear)+"/"+year;
+        dateTextView.setText(date);
+    }
+
+    @Override
+    public void onMultipleDatesSelected(DatePickerDialog view, HashSet<MonthAdapter.CalendarDay> dates) {
+        String date = "You picked " + dates.size() + " dates";
         dateTextView.setText(date);
     }
 }
